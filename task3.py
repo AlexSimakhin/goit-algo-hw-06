@@ -1,4 +1,5 @@
 """task3.py"""
+import heapq
 import networkx as nx
 import matplotlib.pyplot as plt
 
@@ -7,24 +8,20 @@ G = nx.Graph()
 
 # Список вершин (зірок) і їх позицій
 stars = {
-    "Сонце": (5, 5),
-    "Альфа Центавра": (7, 8),
+    "Сонце": (5, 7),
+    "Альфа Центавра": (3.5, 9.3),
     "Вега": (3, 10),
-    "Сіріус": (8, 3),
+    "Сіріус": (1, 2),
     "Проціон": (2, 7),
-    "Бетельгейзе": (6, 9),
+    "Бетельгейзе": (7, 9),
     "Ріґель": (4, 3),
     "Альдебаран": (9, 6),
-    "Капела": (5, 4),
-    "Планета X": (7, 2),
+    "Капела": (5.5, 8.6),
+    "Планета X": (6.5, 6.5),
 }
 
-# Додавання вершин до графа з координатами
-for star, pos in stars.items():
-    G.add_node(star, pos=pos)
-
 # Ребра між вершинами (зв'язки між зірками) з вагами
-edges_with_weights = [
+edges = [
     ("Сонце", "Альфа Центавра", 5),
     ("Альфа Центавра", "Вега", 2),
     ("Вега", "Проціон", 6),
@@ -39,20 +36,71 @@ edges_with_weights = [
     ("Капела", "Бетельгейзе", 4),
 ]
 
+# Додавання вершин до графа з координатами
+for star, pos in stars.items():
+    G.add_node(star, pos=pos)
+    
 # Додавання ребер з вагами до графа
-G.add_weighted_edges_from(edges_with_weights)
+G.add_weighted_edges_from(edges)
 
-# Виконання алгоритму Дейкстри для знаходження найкоротших шляхів від "Сонце" до усіх інших вершин
-shortest_paths = {}
-for node in G.nodes:
-    if node != "Сонце":  # Пропускаємо, бо шукаємо від "Сонце" до інших
-        length, path = nx.single_source_dijkstra(G, "Сонце", node)
-        shortest_paths[node] = (length, path)
+# Функція алгоритму Дейкстри для пошуку найкоротших шляхів
+def dijkstra(graph, start):
+    # Ініціалізуємо відстані до всіх вершин як нескінченність
+    distances = {node: float("infinity") for node in graph.nodes}
+    distances[start] = 0  # Початкова вершина має відстань 0
+    priority_queue = [(0, start)]  # Черга з пріоритетом із початковою вершиною
 
-# Виведення результатів
-print("Найкоротші шляхи від 'Сонце' до інших вершин:")
-for target, (length, path) in shortest_paths.items():
-    print(f"Шлях від 'Сонце' до {target}: {path} з довжиною {length}")
+    while priority_queue:
+        current_distance, current_node = heapq.heappop(priority_queue)
+
+        # Пропускаємо, якщо знайдений кращий шлях
+        if current_distance > distances[current_node]:
+            continue
+
+        # Перевіряємо всіх сусідів поточного вузла
+        for neighbor, attributes in graph[current_node].items():
+            weight = attributes["weight"]  # Вага ребра
+            distance = current_distance + weight  # Новий шлях
+
+            # Оновлення найкращої відстані
+            if distance < distances[neighbor]:
+                distances[neighbor] = distance
+                heapq.heappush(priority_queue, (distance, neighbor))
+
+    return distances
+
+# Функція для обчислення відстаней залежно від вибору користувача
+def calculate_distances(option, start_planet=None):
+    if option == "single" and start_planet:
+        # Обчислення для однієї обраної планети
+        distances_from_start = dijkstra(G, start_planet)
+        print(f"\nНайкоротші шляхи від '{start_planet}':")
+        for target, distance in distances_from_start.items():
+            print(f"Від '{start_planet}' до {target}: відстань {distance}")
+    elif option == "all":
+        # Обчислення для всіх планет
+        print("\nНайкоротші шляхи для всіх планет:")
+        for planet in stars.keys():
+            distances_from_planet = dijkstra(G, planet)
+            print(f"\nВід '{planet}':")
+            for target, distance in distances_from_planet.items():
+                print(f"  до {target}: відстань {distance}")
+    else:
+        print("Неправильний вибір опції!")
+
+# Запит користувача щодо вибору
+option = input("Обчислити відстань для однієї планети чи для всіх? (введіть 'single' або 'all'): ").strip().lower()
+
+if option == "single":
+    start_planet = input("Введіть назву планети (Доступні: \n" + ", ".join(stars.keys()) + "): ").strip()
+    if start_planet in stars:
+        calculate_distances(option, start_planet)
+    else:
+        print("Планета не знайдена!")
+elif option == "all":
+    calculate_distances(option)
+else:
+    print("Некоректний вибір!")
 
 # Візуалізація графа з вагою ребер
 pos = nx.get_node_attributes(G, "pos")
